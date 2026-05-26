@@ -1,0 +1,33 @@
+FROM node:20-alpine AS base
+RUN corepack enable pnpm
+
+# --- deps ---
+FROM base AS deps
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# --- builder ---
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN pnpm db:generate
+
+# --- runner ---
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 worker
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/worker ./worker
+COPY --from=builder /app/src/lib ./src/lib
+COPY --from=builder /app/tsconfig.json ./
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/prisma.config.ts ./
+
+USER worker
+CMD ["node", "--import", "tsx", "worker/index.ts"]

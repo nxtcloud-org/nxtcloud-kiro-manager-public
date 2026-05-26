@@ -1,0 +1,82 @@
+name: Deploy
+
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Determine environment
+        id: env
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "env=prod" >> $GITHUB_OUTPUT
+            echo "host=${{ secrets.PROD_EC2_HOST }}" >> $GITHUB_OUTPUT
+          else
+            echo "env=dev" >> $GITHUB_OUTPUT
+            echo "host=${{ secrets.DEV_EC2_HOST }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ steps.env.outputs.host }}
+          username: ec2-user
+          key: ${{ steps.env.outputs.env == 'prod' && secrets.PROD_SSH_KEY || secrets.DEV_SSH_KEY }}
+          command_timeout: 30m
+          script: |
+            set -e
+            cd /opt/kiro-manager
+
+            echo "=== Git Pull ==="
+            git fetch origin
+            git reset --hard origin/main
+
+            echo "=== Docker Cleanup ==="
+            docker image prune -f
+            docker builder prune -af
+
+            echo "=== Docker Build ==="
+            docker compose -f docker-compose.prod.yml build
+
+            echo "=== Docker Restart ==="
+            docker compose -f docker-compose.prod.yml up -d
+
+            echo "=== Post-deploy Cleanup ==="
+            docker image prune -af || true
+
+            echo "=== DB Schema Sync ==="
+            docker compose -f docker-compose.prod.yml exec -T worker npx prisma db push
+
+            echo "=== Health Check ==="
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+                echo "Healthy (attempt $i)"
+                exit 0
+              fi
+              echo "Waiting... ($i/30)"
+              sleep 5
+            done
+            echo "Health check failed"
+            exit 1
+
+      - name: Invalidate CloudFront cache
+        if: success()
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ steps.env.outputs.host }}
+          username: ec2-user
+          key: ${{ steps.env.outputs.env == 'prod' && secrets.PROD_SSH_KEY || secrets.DEV_SSH_KEY }}
+          script: |
+            CF_ID="${{ steps.env.outputs.env == 'prod' && secrets.PROD_CF_DIST_ID || secrets.DEV_CF_DIST_ID }}"
+            if [ -n "$CF_ID" ]; then
+              aws cloudfront create-invalidation --distribution-id "$CF_ID" --paths "/*" || true
+            fi

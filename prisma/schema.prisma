@@ -1,0 +1,303 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Organization (대학/기관) ──
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  groups        Group[]
+  subscriptions Subscription[]
+  courses       Course[]
+  accounts      Account[]
+
+  @@map("organizations")
+}
+
+// ── Subscription (구독 관리) ──
+model Subscription {
+  id              String           @id @default(cuid())
+  organizationId  String           @map("organization_id")
+  tier            SubscriptionTier @default(FREE)
+  seatCount       Int              @map("seat_count")
+  creditLimit     Float            @map("credit_limit")
+  startDate       DateTime         @map("start_date")
+  endDate         DateTime?        @map("end_date")
+  awsAccountId    String?          @map("aws_account_id")
+  awsAccountAlias String?          @map("aws_account_alias")
+  s3Bucket        String?          @map("s3_bucket")
+  identityStoreId String?          @map("identity_store_id")
+  isActive        Boolean          @default(true) @map("is_active")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+enum SubscriptionTier {
+  FREE
+  PRO
+  PRO_PLUS
+  POWER
+}
+
+// ── Group (수업/과정) ──
+model Group {
+  id             String   @id @default(cuid())
+  code           String
+  name           String
+  organizationId String   @map("organization_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userGroups   UserGroup[]
+  teamMembers  TeamMember[]
+
+  @@unique([organizationId, code])
+  @@map("groups")
+}
+
+// ── KiroUser (IDE 사용자 — Identity Center 동기화) ──
+model KiroUser {
+  id               String   @id @default(cuid())
+  userId           String   @unique @map("user_id")
+  identityCenterId String?  @map("identity_center_id")
+  displayName      String   @map("display_name")
+  email            String?
+  username         String?
+  syncedAt         DateTime @map("synced_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // IC Job-related 필드 (개인 식별)
+  userType   String? @map("user_type")   // IC UserType: "student" | null
+  title      String?                      // IC Title 원본: "a-univ_20243133"
+  schoolCode String? @map("school_code") // Title에서 파싱: "a-univ"
+  studentId  String? @map("student_id")  // Title에서 파싱: "20243133"
+
+  // 기존 관계 (과도기 유지)
+  userGroups  UserGroup[]
+  messages    Message[]
+  userReports UserReport[]
+  teamMembers TeamMember[]
+
+  // 신규 관계 (미래 경로)
+  courseEnrollments CourseEnrollment[]
+
+  @@index([email])
+  @@unique([schoolCode, studentId])
+  @@map("kiro_users")
+}
+
+// ── UserGroup (다대다: 사용자 ↔ 그룹) ──
+model UserGroup {
+  id      String @id @default(cuid())
+  userId  String @map("user_id")
+  groupId String @map("group_id")
+
+  kiroUser KiroUser @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@index([groupId])
+  @@map("user_groups")
+}
+
+// ── Message (GAR 로그 — 사용 이벤트) ──
+model Message {
+  id              String   @id @default(cuid())
+  requestId       String   @unique @map("request_id")
+  userId          String   @map("user_id")
+  conversationId  String?  @map("conversation_id")
+  chatTriggerType String?  @map("chat_trigger_type")
+  timestamp       DateTime
+  date            String
+  hour            Int
+  promptLength    Int      @map("prompt_length")
+  responseLength  Int      @map("response_length")
+  modelId         String?  @map("model_id")
+  s3Key           String   @map("s3_key")
+
+  kiroUser KiroUser @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([date])
+  @@index([userId, date])
+  @@index([date, hour])
+  @@map("messages")
+}
+
+// ── UserReport (일일 크레딧/구독 데이터) ──
+model UserReport {
+  id                 String  @id @default(cuid())
+  date               String
+  userId             String  @map("user_id")
+  clientType         String? @map("client_type")
+  chatConversations  Int     @default(0) @map("chat_conversations")
+  creditsUsed        Float   @default(0) @map("credits_used")
+  overageCreditsUsed Float   @default(0) @map("overage_credits_used")
+  overageEnabled     Boolean @default(false) @map("overage_enabled")
+  subscriptionTier   String? @map("subscription_tier")
+  totalMessages      Int     @default(0) @map("total_messages")
+  autoMessages       Int     @default(0) @map("auto_messages")
+  simpleTaskMessages Int     @default(0) @map("simple_task_messages")
+  unknownMessages    Int     @default(0) @map("unknown_messages")
+  s3Key              String  @map("s3_key")
+
+  kiroUser KiroUser @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([date, userId])
+  @@index([date])
+  @@map("user_reports")
+}
+
+// ── CollectionLog (수집된 S3 파일 추적) ──
+model CollectionLog {
+  id          String   @id @default(cuid())
+  s3Key       String   @unique @map("s3_key")
+  collectedAt DateTime @map("collected_at")
+  recordCount Int      @map("record_count")
+  fileType    String   @default("gar") @map("file_type")
+
+  @@map("collection_log")
+}
+
+// ── CollectionMeta (수집 상태 키-값) ──
+model CollectionMeta {
+  key   String @id
+  value String
+
+  @@map("collection_meta")
+}
+
+// ── TeamMember (팀/학생 명단) ──
+model TeamMember {
+  id          String  @id @default(cuid())
+  groupId     String  @map("group_id")
+  teamName    String  @map("team_name")
+  studentName String  @map("student_name")
+  email       String
+  userId      String? @map("user_id")
+
+  group    Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  kiroUser KiroUser? @relation(fields: [userId], references: [userId])
+
+  @@unique([groupId, email])
+  @@index([userId])
+  @@index([groupId, teamName])
+  @@map("team_members")
+}
+
+// ── Course (수업 — 서버 관리, 미래 경로) ──
+model Course {
+  id              String   @id @default(cuid())
+  code            String                          // "cloud-computing-2026-1"
+  name            String                          // "클라우드컴퓨팅"
+  semester        String                          // "2026-1"
+  organizationId  String   @map("organization_id")
+  legacyGroupCode String?  @map("legacy_group_code") // 과도기: 기존 Group.code 연결
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  enrollments  CourseEnrollment[]
+
+  @@unique([organizationId, code])
+  @@map("courses")
+}
+
+// ── CourseEnrollment (학생 ↔ 수업 ↔ 선택적 팀) ──
+model CourseEnrollment {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  courseId   String   @map("course_id")
+  teamName   String?  @map("team_name")  // 팀이 있는 수업인 경우 (group1, group2...)
+  enrolledAt DateTime @default(now()) @map("enrolled_at")
+
+  kiroUser KiroUser @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+  @@index([courseId, teamName])
+  @@map("course_enrollments")
+}
+
+// ── WeeklyReport (주간 프롬프트 분석 리포트) ──
+model WeeklyReport {
+  id          String   @id @default(cuid())
+  weekStart   String   @map("week_start")  // "2026-03-24"
+  weekEnd     String   @map("week_end")    // "2026-03-30"
+  groupCode   String?  @map("group_code")  // null이면 전체
+  messageCount Int     @map("message_count")
+  categories  Json                          // { "디버깅": 42, "코드생성": 28, ... }
+  keywords    Json                          // ["async/await", "배포", "DB연결", ...]
+  insights    String   @db.Text             // Bedrock이 생성한 인사이트 텍스트
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([weekStart, groupCode])
+  @@map("weekly_reports")
+}
+
+// ── Account (대시보드 관리자 계정) ──
+model Account {
+  id             String      @id @default(cuid())
+  username       String      @unique
+  passwordHash   String      @map("password_hash")
+  role           AccountRole @default(SCHOOL)
+  displayName    String      @map("display_name")
+  groups         String[]
+  organizationId String?     @map("organization_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  organization    Organization?   @relation(fields: [organizationId], references: [id])
+  accountPolicies AccountPolicy[]
+
+  @@map("accounts")
+}
+
+enum AccountRole {
+  ADMIN
+  SALES
+  SCHOOL
+  DEMO
+}
+
+// ── Policy (IAM 스타일 정책) ──
+model Policy {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  document    Json                          // PolicyDocument JSON
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  accountPolicies AccountPolicy[]
+
+  @@map("policies")
+}
+
+// ── AccountPolicy (계정 ↔ 정책 연결) ──
+model AccountPolicy {
+  id        String @id @default(cuid())
+  accountId String @map("account_id")
+  policyId  String @map("policy_id")
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  policy  Policy  @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, policyId])
+  @@map("account_policies")
+}

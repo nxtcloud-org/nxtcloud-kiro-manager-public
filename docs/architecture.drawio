@@ -1,0 +1,242 @@
+<mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <!-- Title -->
+    <mxCell id="title" value="NxtCloud KIRO Manager - AWS Architecture" style="text;html=1;fontSize=18;fontStyle=1;align=center;verticalAlign=middle;fillColor=none;strokeColor=none;fontColor=#1E3A5F;" vertex="1" parent="1">
+      <mxGeometry x="400" y="10" width="600" height="40" as="geometry"/>
+    </mxCell>
+
+    <!-- AWS Cloud Boundary -->
+    <mxCell id="aws" value="AWS Cloud (123456789012 / nxtcloud)" style="swimlane;startSize=30;fillColor=#F0F4F8;strokeColor=#3B82F6;strokeWidth=2;rounded=1;arcSize=6;fontStyle=1;fontSize=13;fontColor=#1E40AF;container=1;pointerEvents=0;" vertex="1" parent="1">
+      <mxGeometry x="230" y="60" width="1150" height="700" as="geometry"/>
+    </mxCell>
+
+    <!-- Edge Services -->
+    <mxCell id="r53" value="Route53&#xa;kiro-manager.example.com" style="rounded=1;whiteSpace=wrap;fillColor=#DBEAFE;strokeColor=#3B82F6;fontColor=#1E3A5F;fontSize=11;" vertex="1" parent="aws">
+      <mxGeometry x="40" y="60" width="180" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="cf" value="CloudFront&#xa;(HTTPS + Cache)" style="rounded=1;whiteSpace=wrap;fillColor=#DBEAFE;strokeColor=#3B82F6;fontColor=#1E3A5F;fontSize=11;" vertex="1" parent="aws">
+      <mxGeometry x="40" y="150" width="180" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="acm" value="ACM&#xa;SSL Certificate" style="rounded=1;whiteSpace=wrap;fillColor=#EFF6FF;strokeColor=#93C5FD;fontColor=#3B82F6;fontSize=10;" vertex="1" parent="aws">
+      <mxGeometry x="40" y="240" width="120" height="40" as="geometry"/>
+    </mxCell>
+
+    <!-- EC2 Docker Host -->
+    <mxCell id="ec2" value="EC2 (t3.small) - Docker Host" style="swimlane;startSize=28;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;rounded=1;arcSize=8;fontStyle=1;fontSize=12;fontColor=#92400E;container=1;pointerEvents=0;" vertex="1" parent="aws">
+      <mxGeometry x="280" y="60" width="420" height="340" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="app" value="Next.js App&#xa;(port 3000)&#xa;Dashboard + API" style="rounded=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#F59E0B;fontColor=#1E3A5F;fontSize=11;fontStyle=0;" vertex="1" parent="ec2">
+      <mxGeometry x="20" y="50" width="170" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="worker" value="Worker&#xa;S3 수집 + IC 동기화&#xa;node-cron" style="rounded=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#F59E0B;fontColor=#1E3A5F;fontSize=11;fontStyle=0;" vertex="1" parent="ec2">
+      <mxGeometry x="220" y="50" width="170" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="compose" value="docker-compose.prod.yml" style="text;fontSize=9;fontColor=#92400E;align=center;fillColor=none;strokeColor=none;" vertex="1" parent="ec2">
+      <mxGeometry x="100" y="130" width="200" height="20" as="geometry"/>
+    </mxCell>
+
+    <!-- IAM Role inside EC2 -->
+    <mxCell id="iam" value="IAM Instance Profile&#xa;S3:Read | IC:Read | ECR:Pull" style="rounded=1;whiteSpace=wrap;fillColor=#FEF9C3;strokeColor=#EAB308;fontColor=#713F12;fontSize=10;" vertex="1" parent="ec2">
+      <mxGeometry x="60" y="165" width="280" height="40" as="geometry"/>
+    </mxCell>
+
+    <!-- EIP -->
+    <mxCell id="eip" value="Elastic IP" style="rounded=1;whiteSpace=wrap;fillColor=#EFF6FF;strokeColor=#93C5FD;fontColor=#3B82F6;fontSize=10;" vertex="1" parent="ec2">
+      <mxGeometry x="140" y="220" width="120" height="35" as="geometry"/>
+    </mxCell>
+
+    <!-- S3 Bucket -->
+    <mxCell id="s3" value="S3&#xa;your-kiro-logs-bucket" style="shape=cylinder3;whiteSpace=wrap;fillColor=#DCFCE7;strokeColor=#22C55E;fontColor=#14532D;fontSize=11;size=12;" vertex="1" parent="aws">
+      <mxGeometry x="780" y="60" width="200" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="s3_gar" value="kiro/AWSLogs/{AcctID}/&#xa;KiroLogs/GenerateAssistantResponse/&#xa;{region}/{yyyy}/{mm}/{dd}/{hh}/*.json.gz" style="text;fontSize=8;fontColor=#166534;align=left;fillColor=none;strokeColor=none;verticalAlign=top;" vertex="1" parent="aws">
+      <mxGeometry x="780" y="148" width="260" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="s3_report" value="kiro-user-activity/AWSLogs/{AcctID}/&#xa;KiroLogs/user_report/&#xa;{region}/{yyyy}/{mm}/{dd}/{hh}/*.csv" style="text;fontSize=8;fontColor=#166534;align=left;fillColor=none;strokeColor=none;verticalAlign=top;" vertex="1" parent="aws">
+      <mxGeometry x="780" y="190" width="260" height="40" as="geometry"/>
+    </mxCell>
+
+    <!-- Identity Center -->
+    <mxCell id="ic" value="Identity Center SSO&#xa;(d-xxxxxxxxxx)&#xa;UserType + Title" style="rounded=1;whiteSpace=wrap;fillColor=#F3E8FF;strokeColor=#A855F7;fontColor=#581C87;fontSize=11;" vertex="1" parent="aws">
+      <mxGeometry x="780" y="260" width="200" height="60" as="geometry"/>
+    </mxCell>
+
+    <!-- RDS -->
+    <mxCell id="rds" value="RDS PostgreSQL 16&#xa;(db.t4g.micro)&#xa;kiro_manager" style="shape=cylinder3;whiteSpace=wrap;fillColor=#FEE2E2;strokeColor=#EF4444;fontColor=#7F1D1D;fontSize=11;size=12;" vertex="1" parent="aws">
+      <mxGeometry x="780" y="380" width="200" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="rds_detail" value="messages: 95K+ | users: 183&#xa;course_enrollments: 171 | team_members: 120" style="text;fontSize=8;fontColor=#991B1B;align=left;fillColor=none;strokeColor=none;" vertex="1" parent="aws">
+      <mxGeometry x="780" y="465" width="260" height="30" as="geometry"/>
+    </mxCell>
+
+    <!-- ECR -->
+    <mxCell id="ecr" value="ECR&#xa;kiro-manager-app&#xa;kiro-manager-worker" style="rounded=1;whiteSpace=wrap;fillColor=#FFF7ED;strokeColor=#F97316;fontColor=#7C2D12;fontSize=10;" vertex="1" parent="aws">
+      <mxGeometry x="780" y="530" width="200" height="60" as="geometry"/>
+    </mxCell>
+
+    <!-- Security Group -->
+    <mxCell id="sg" value="Security Group&#xa;:3000 from CloudFront only&#xa;:22 from allowed CIDRs&#xa;:5432 internal only" style="rounded=1;whiteSpace=wrap;fillColor=#F1F5F9;strokeColor=#94A3B8;fontColor=#475569;fontSize=9;dashed=1;" vertex="1" parent="aws">
+      <mxGeometry x="280" y="440" width="240" height="70" as="geometry"/>
+    </mxCell>
+
+    <!-- GitHub Actions -->
+    <mxCell id="ghactions" value="GitHub Actions&#xa;CI/CD Pipeline" style="rounded=1;whiteSpace=wrap;fillColor=#F1F5F9;strokeColor=#94A3B8;fontColor=#475569;fontSize=10;dashed=1;" vertex="1" parent="aws">
+      <mxGeometry x="280" y="540" width="160" height="50" as="geometry"/>
+    </mxCell>
+
+    <!-- External: KIRO Users -->
+    <mxCell id="kiro_users" value="KIRO IDE&#xa;사용자 (175명)" style="shape=mxgraph.flowchart.multi-document;whiteSpace=wrap;fillColor=#E0F2FE;strokeColor=#0284C7;fontColor=#0C4A6E;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="40" y="100" width="140" height="70" as="geometry"/>
+    </mxCell>
+
+    <!-- External: Admin -->
+    <mxCell id="admin" value="관리자&#xa;(Browser)" style="shape=mxgraph.flowchart.terminator;whiteSpace=wrap;fillColor=#E0F2FE;strokeColor=#0284C7;fontColor=#0C4A6E;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="50" y="400" width="120" height="50" as="geometry"/>
+    </mxCell>
+
+    <!-- External: GitHub -->
+    <mxCell id="github" value="GitHub&#xa;nxtcloud-org/Kiro-Manager" style="rounded=1;whiteSpace=wrap;fillColor=#F1F5F9;strokeColor=#64748B;fontColor=#334155;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="40" y="640" width="160" height="50" as="geometry"/>
+    </mxCell>
+
+    <!-- EDGES -->
+
+    <!-- KIRO Users to S3 (AWS auto-logging) -->
+    <mxCell id="e_kiro_s3" value="KIRO 사용 로그&#xa;(AWS 자동 적재)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#22C55E;fontColor=#166534;fontSize=9;exitX=1;exitY=0.5;entryX=0.5;entryY=0;dashed=1;" edge="1" source="kiro_users" target="s3" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="210" y="135"/>
+          <mxPoint x="210" y="50"/>
+          <mxPoint x="1110" y="50"/>
+        </Array>
+      </mxGeometry>
+    </mxCell>
+
+    <!-- KIRO Users to IC -->
+    <mxCell id="e_kiro_ic" value="SSO 인증" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#A855F7;fontColor=#7C3AED;fontSize=9;exitX=1;exitY=0.75;entryX=0;entryY=0.5;" edge="1" source="kiro_users" target="ic" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="200" y="153"/>
+          <mxPoint x="200" y="350"/>
+          <mxPoint x="1010" y="350"/>
+        </Array>
+      </mxGeometry>
+    </mxCell>
+
+    <!-- Admin to Route53 -->
+    <mxCell id="e_admin_r53" value="HTTPS" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#3B82F6;fontColor=#1E40AF;fontSize=9;" edge="1" source="admin" target="r53" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="210" y="425"/>
+          <mxPoint x="210" y="145"/>
+        </Array>
+      </mxGeometry>
+    </mxCell>
+
+    <!-- Route53 to CloudFront -->
+    <mxCell id="e_r53_cf" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#3B82F6;" edge="1" source="r53" target="cf" parent="aws">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- ACM to CloudFront -->
+    <mxCell id="e_acm_cf" value="SSL" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#93C5FD;fontSize=8;fontColor=#3B82F6;dashed=1;" edge="1" source="acm" target="cf" parent="aws">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- CloudFront to App -->
+    <mxCell id="e_cf_app" value=":3000" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#F59E0B;fontColor=#92400E;fontSize=9;" edge="1" source="cf" target="app" parent="aws">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- Worker to S3 -->
+    <mxCell id="e_worker_s3" value="매 60분&#xa;GAR + Report 수집" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#22C55E;fontColor=#166534;fontSize=9;entryX=0;entryY=0.5;" edge="1" source="worker" target="s3" parent="aws">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="720" y="145"/>
+          <mxPoint x="720" y="100"/>
+        </Array>
+      </mxGeometry>
+    </mxCell>
+
+    <!-- Worker to IC -->
+    <mxCell id="e_worker_ic" value="매 6시간&#xa;사용자 동기화" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#A855F7;fontColor=#7C3AED;fontSize=9;entryX=0;entryY=0.5;" edge="1" source="worker" target="ic" parent="aws">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="730" y="145"/>
+          <mxPoint x="730" y="290"/>
+        </Array>
+      </mxGeometry>
+    </mxCell>
+
+    <!-- App to RDS -->
+    <mxCell id="e_app_rds" value="읽기" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#EF4444;fontColor=#991B1B;fontSize=9;entryX=0;entryY=0.3;" edge="1" source="app" target="rds" parent="aws">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="400" y="145"/>
+          <mxPoint x="400" y="404"/>
+        </Array>
+      </mxGeometry>
+    </mxCell>
+
+    <!-- Worker to RDS -->
+    <mxCell id="e_worker_rds" value="쓰기" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#EF4444;fontColor=#991B1B;fontSize=9;entryX=0;entryY=0.7;" edge="1" source="worker" target="rds" parent="aws">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="740" y="145"/>
+          <mxPoint x="740" y="436"/>
+        </Array>
+      </mxGeometry>
+    </mxCell>
+
+    <!-- ECR to EC2 -->
+    <mxCell id="e_ecr_ec2" value="docker pull" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#F97316;fontColor=#7C2D12;fontSize=9;dashed=1;entryX=0.5;entryY=1;" edge="1" source="ecr" target="ec2" parent="aws">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="880" y="510"/>
+          <mxPoint x="490" y="510"/>
+        </Array>
+      </mxGeometry>
+    </mxCell>
+
+    <!-- GitHub to GitHub Actions -->
+    <mxCell id="e_gh_gha" value="push/tag" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#64748B;fontColor=#475569;fontSize=9;dashed=1;" edge="1" source="github" target="ghactions" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- GitHub Actions to ECR -->
+    <mxCell id="e_gha_ecr" value="build + push" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#F97316;fontColor=#7C2D12;fontSize=9;dashed=1;" edge="1" source="ghactions" target="ecr" parent="aws">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <!-- Legend -->
+    <mxCell id="legend" value="" style="rounded=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;container=1;pointerEvents=0;" vertex="1" parent="aws">
+      <mxGeometry x="20" y="540" width="220" height="140" as="geometry"/>
+    </mxCell>
+    <mxCell id="leg_title" value="S3 데이터 흐름" style="text;fontSize=11;fontStyle=1;fontColor=#1E3A5F;fillColor=none;strokeColor=none;" vertex="1" parent="legend">
+      <mxGeometry x="10" y="5" width="200" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="leg1" value="1. KIRO IDE 사용 시 AWS가 S3에 자동 적재" style="text;fontSize=8;fontColor=#475569;fillColor=none;strokeColor=none;" vertex="1" parent="legend">
+      <mxGeometry x="10" y="28" width="200" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="leg2" value="2. Worker가 매 60분 S3에서 json.gz/CSV 수집" style="text;fontSize=8;fontColor=#475569;fillColor=none;strokeColor=none;" vertex="1" parent="legend">
+      <mxGeometry x="10" y="44" width="210" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="leg3" value="3. 파싱 후 PostgreSQL에 저장 (messages 테이블)" style="text;fontSize=8;fontColor=#475569;fillColor=none;strokeColor=none;" vertex="1" parent="legend">
+      <mxGeometry x="10" y="60" width="210" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="leg4" value="4. Worker가 매 6시간 IC에서 사용자 동기화" style="text;fontSize=8;fontColor=#475569;fillColor=none;strokeColor=none;" vertex="1" parent="legend">
+      <mxGeometry x="10" y="76" width="210" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="leg5" value="5. Next.js App이 DB 읽어서 대시보드 제공" style="text;fontSize=8;fontColor=#475569;fillColor=none;strokeColor=none;" vertex="1" parent="legend">
+      <mxGeometry x="10" y="92" width="200" height="16" as="geometry"/>
+    </mxCell>
+    <mxCell id="leg6" value="6. 관리자가 CloudFront HTTPS로 접속" style="text;fontSize=8;fontColor=#475569;fillColor=none;strokeColor=none;" vertex="1" parent="legend">
+      <mxGeometry x="10" y="108" width="200" height="16" as="geometry"/>
+    </mxCell>
+
+  </root>
+</mxGraphModel>

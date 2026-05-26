@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: kiro_manager
+      POSTGRES_USER: kiro
+      POSTGRES_PASSWORD: kiro_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kiro -d kiro_manager"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://kiro:kiro_dev@db:5432/kiro_manager
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-local-only}
+      NODE_ENV: development
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      DATABASE_URL: postgresql://kiro:kiro_dev@db:5432/kiro_manager
+      S3_BUCKET: ${S3_BUCKET:-your-kiro-logs-bucket}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCOUNT_ID: ${AWS_ACCOUNT_ID:-}
+      IDENTITY_STORE_ID: ${IDENTITY_STORE_ID:-}
+      COLLECT_INTERVAL_MINUTES: "60"
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
